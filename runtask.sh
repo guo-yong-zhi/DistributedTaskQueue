@@ -1,4 +1,4 @@
-# /bin/bash
+#!/bin/bash
 master="$MASTER_SERVER"
 [ -z "$master" ] && master="username@default_master_server.com"
 taskfile="$TASK_FILE"
@@ -9,35 +9,35 @@ workername="$WORKER_NAME"
 #parse arguments
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    -m|--master)
-      master="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -n|--name)
-      workername="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -i|--id)
-      newid="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    --lock)
-      LOCK="YES"
-      shift # past argument
-      ;;
-    -*|--*)
-      echo "Unknown option $1"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
+    case $1 in
+        -m|--master)
+          master="$2"
+          shift # past argument
+          shift # past value
+          ;;
+        -n|--name)
+          workername="$2"
+          shift # past argument
+          shift # past value
+          ;;
+        -i|--id)
+          newid="$2"
+          shift # past argument
+          shift # past value
+          ;;
+        --lock)
+          LOCK="YES"
+          shift # past argument
+          ;;
+        -*|--*)
+          echo "Unknown option $1"
+          exit 1
+          ;;
+        *)
+          POSITIONAL_ARGS+=("$1") # save positional arg
+          shift # past argument
+          ;;
+    esac
 done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 newtask=$1
@@ -51,7 +51,7 @@ do
 if [ ! -z "$LOCK" ]
 then
 taskfile="${newtask/#\~/$HOME}"
-ssh -q $master bash << EOF
+ssh $master bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 echo "$taskfile is locked (unlock it with CTRL-C)"
 tail -f /dev/null
@@ -68,33 +68,35 @@ wkid=$newid
 newid=""
 linenum=0
 cmdline=""
-workerid=$(ssh -q $master bash << EOF
+workerid=$(ssh $master bash << EOF
 touch "$taskfile"
 exec {FD}<>"$taskfile.lock"; flock \$FD
 sleep 1
 num=\$(awk 'NR==1 && \$1=="#LASTWORKER" {print \$NF; exit}' $taskfile)
 if [ -z "\$num" ]
 then
-  sed -i '1 i\#LASTWORKER -1' "$taskfile"
-  [ ! -s "$taskfile" ] && echo "#LASTWORKER -1" > "$taskfile"
-  num=-1
+    sed -i '1 i\#LASTWORKER -1' "$taskfile"
+    [ ! -s "$taskfile" ] && echo "#LASTWORKER -1" > "$taskfile"
+    num=-1
 fi
 if [ ! -z "$wkid" ]
 then
-  num=$wkid
+    num=$wkid
 else
-  num=\$((num+1))
+    num=\$((num+1))
 fi
 sed -i "1s/.*/#LASTWORKER \$num/" "$taskfile"
 if [[ ! -z "\$(tail -c 1 "$taskfile")" ]]
 then
-  echo "" >> "$taskfile"
+    echo "" >> "$taskfile"
 fi
 echo "# worker \$num: $workername (\$(date '+%m-%d %H:%M:%S'))" >> "$taskfile"
 flock -u \$FD
 echo \$num
 EOF
 )
+sshexcode=$?
+[ $sshexcode -ne 0 ] && echo "error code: $sshexcode" && exit $sshexcode
 export WORKERID=$workerid
 export TASKFILE="$taskfile"
 echo "##############################"
@@ -105,7 +107,7 @@ echo "##############################"
 fi
 
 # take task & edit taskfile
-out=$(ssh -q $master bash << EOF
+out=$(ssh $master bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 python3 << EOPY
 with open("$taskfile") as f:
@@ -142,12 +144,14 @@ EOPY
 flock -u \$FD
 EOF
 )
+sshexcode=$?
+[ $sshexcode -ne 0 ] && echo "error code: $sshexcode" && out=""
 
 # eval task command
 cmd=`echo "$out" | sed '$ d'`
-linenum=$(echo "$out" | tail -1)
 if [ ! -z "$cmd" ]
 then
+    linenum=$(echo "$out" | tail -1)
     echo "======================="
     echo "LINE:$linenum"
     echo "$cmd"
