@@ -157,7 +157,7 @@ then
     echo "$cmd"
     echo "-----------------------"
     while read -r line; do
-        echo "➜ `pwd`> $line"
+        echo "(worker $WORKERID)➜ `pwd`> $line"
         if echo $line | grep "#\!"
         then
             eval "$line"
@@ -166,7 +166,7 @@ then
         fi
         excode=$?
         [ $excode -eq 0 ] && excode=ok
-        echo "∎[$line] #$excode"
+        echo "∎(worker $WORKERID)[$line] #$excode"
         cmdline=$line
     done <<< "$cmd"
     echo
