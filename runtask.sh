@@ -10,24 +10,29 @@ workername="$WORKER_NAME"
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -m|--master)
+        -m|--master) #> set the master server.
           master="$2"
-          shift # past argument
-          shift # past value
+          shift
+          shift
           ;;
-        -n|--name)
+        -n|--name) #> set the worker name.
           workername="$2"
-          shift # past argument
-          shift # past value
+          shift
+          shift
           ;;
-        -i|--id)
+        -i|--id) #> set the worker id.
           newid="$2"
-          shift # past argument
-          shift # past value
+          shift
+          shift
           ;;
-        --lock)
+        --lock) #> lock the file so that you can edit it safely manually.
           LOCK="YES"
-          shift # past argument
+          shift
+          ;;
+        -h|--help) #> show this message.
+          echo "Parameters:"
+          grep ") [#]>" $0 | sed 's/^[[:space:]]*//; s/) [#]>/]/' | sed 's/.*/[&/'
+          exit
           ;;
         -*|--*)
           echo "Unknown option $1"
@@ -35,7 +40,7 @@ while [[ $# -gt 0 ]]; do
           ;;
         *)
           POSITIONAL_ARGS+=("$1") # save positional arg
-          shift # past argument
+          shift
           ;;
     esac
 done
@@ -113,6 +118,7 @@ python3 << EOPY
 with open("$taskfile") as f:
     L = f.readlines()
 linenum2 = $linenum
+edited = False
 for i,l in enumerate(L, 1):
     l = l.strip()
     if "#!" in l:
@@ -126,6 +132,7 @@ for i,l in enumerate(L, 1):
             print(l)
             L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
             linenum2 = i
+            edited = True
             break
 print(linenum2)
 ind = $linenum-1
@@ -136,10 +143,13 @@ if 0 <= ind < len(L):
         if c1 == c2:
             if "#!" not in L[ind]:
                 L[ind] = L[ind].strip() + " `date '+%m-%d %H:%M:%S'`) #$excode\n"
+                edited = True
         else:
             L.append("#?line:$linenum# " + c2 + " # worker $WORKERID # ... `date '+%m-%d %H:%M:%S'`) #$excode\n")
-with open("$taskfile", "w") as f:
-    f.writelines(L)        
+            edited = True
+if edited:
+    with open("$taskfile", "w") as f:
+        f.writelines(L)        
 EOPY
 flock -u \$FD
 EOF
@@ -172,7 +182,7 @@ then
     echo
 else
     cmdline=""
+    sleep 3
 fi
-sleep 3
 
 done
