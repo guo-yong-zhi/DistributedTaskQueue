@@ -10,12 +10,12 @@ workername="$WORKER_NAME"
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -m|--master) #> set the master server.
+        -m|--master) #> set the master server. (env: MASTER_SERVER)
           master="$2"
           shift
           shift
           ;;
-        -n|--name) #> set the worker name.
+        -n|--name) #> set the worker name. (env: WORKER_NAME)
           workername="$2"
           shift
           shift
@@ -29,9 +29,14 @@ while [[ $# -gt 0 ]]; do
           LOCK="YES"
           shift
           ;;
+        --reset) #> reset the file to initial state.
+          RESET="YES"
+          shift
+          ;;
         -h|--help) #> show this message.
           echo "Parameters:"
           grep ") [#]>" $0 | sed 's/^[[:space:]]*//; s/) [#]>/]/' | sed 's/.*/[&/'
+          echo '[taskfile] path to the taskfile on the master server.'
           exit
           ;;
         -*|--*)
@@ -60,6 +65,31 @@ ssh $master bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 echo "$taskfile is locked (unlock it with CTRL-C)"
 tail -f /dev/null
+EOF
+exit
+fi
+#reset
+if [ ! -z "$RESET" ]
+then
+taskfile="${newtask/#\~/$HOME}"
+ssh $master bash << EOF
+exec {FD}<>"$taskfile.lock"; flock \$FD
+python3 << EOPY
+import re
+L = []
+with open("$taskfile") as f:
+    for l in f.readlines():
+        if l.startswith('#LASTWORKER'):
+            continue
+        l2 = re.sub(r"\s*# worker .*", "", l)
+        if l2 != l and l2 and l2[0] == "#":
+            l2 = l2[1:]
+        if l2.strip():
+            L.append(l2)
+with open("$taskfile", "w") as f:
+    f.writelines(L)
+EOPY
+flock -u \$FD
 EOF
 exit
 fi
