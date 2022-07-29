@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
           shift
           shift
           ;;
-        --lock) #> lock the file so that you can edit it safely manually.
+        --lock) #> lock the file so that you can edit it safely.
           LOCK="YES"
           shift
           ;;
@@ -35,8 +35,8 @@ while [[ $# -gt 0 ]]; do
           ;;
         -h|--help) #> show this message.
           echo "Parameters:"
+          echo '[taskfile] path to the taskfile on the master server. (env: TASK_FILE)'
           grep ") [#]>" $0 | sed 's/^[[:space:]]*//; s/) [#]>/]/' | sed 's/.*/[&/'
-          echo '[taskfile] path to the taskfile on the master server.'
           exit
           ;;
         -*|--*)
