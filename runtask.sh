@@ -60,8 +60,12 @@ do
 #lock
 if [ ! -z "$LOCK" ]
 then
-taskfile="${newtask/#\~/$HOME}"
-ssh $master bash << EOF
+taskfile=`echo "$newtask" | cut -s -d \: -f 2`
+[ -z "$taskfile" ] && taskfile="$newtask"
+taskfile="${taskfile/#\~/$HOME}"
+mst=`echo "$newtask" | cut -s -d \: -f 1`
+[ -z "$mst" ] && mst="$master"
+ssh $mst bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 echo "$taskfile is locked (unlock it with CTRL-C)"
 tail -f /dev/null
@@ -71,8 +75,12 @@ fi
 #reset
 if [ ! -z "$RESET" ]
 then
-taskfile="${newtask/#\~/$HOME}"
-ssh $master bash << EOF
+taskfile=`echo "$newtask" | cut -s -d \: -f 2`
+[ -z "$taskfile" ] && taskfile="$newtask"
+taskfile="${taskfile/#\~/$HOME}"
+mst=`echo "$newtask" | cut -s -d \: -f 1`
+[ -z "$mst" ] && mst="$master"
+ssh $mst bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 python3 << EOPY
 import re
@@ -97,13 +105,17 @@ fi
 #task init
 if [ ! -z "$newtask" ]
 then
-taskfile="${newtask/#\~/$HOME}"
+taskfile=`echo "$newtask" | cut -s -d \: -f 2`
+[ -z "$taskfile" ] && taskfile="$newtask"
+taskfile="${taskfile/#\~/$HOME}"
+mst=`echo "$newtask" | cut -s -d \: -f 1`
+[ -z "$mst" ] && mst="$master"
 newtask=""
 wkid=$newid
 newid=""
 linenum=0
 cmdline=""
-workerid=$(ssh $master bash << EOF
+workerid=$(ssh $mst bash << EOF
 touch "$taskfile"
 exec {FD}<>"$taskfile.lock"; flock \$FD
 sleep 1
@@ -142,7 +154,7 @@ echo "##############################"
 fi
 
 # take task & edit taskfile
-out=$(ssh $master bash << EOF
+out=$(ssh $mst bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
 python3 << EOPY
 with open("$taskfile") as f:
