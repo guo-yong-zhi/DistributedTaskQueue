@@ -30,8 +30,9 @@ while [[ $# -gt 0 ]]; do
           shift
           ;;
         --reset) #> reset the file to initial state.
-          RESET="YES"
+          RESET=0
           shift
+          [ ! "${1:0:1}" = "-" ] && [ ! -z "${1:0:1}" ] && RESET=$1 && shift
           ;;
         -h|--help) #> show this message.
           echo "Parameters:"
@@ -70,7 +71,10 @@ python3 << EOPY
 import re
 L = []
 with open("$taskfile") as f:
-    for l in f.readlines():
+    for i,l in enumerate(f.readlines()):
+        if i+1 < $RESET:
+            L.append(l)
+            continue
         if l.startswith('#LASTWORKER') or l.startswith('#?line:'):
             continue
         l2 = re.sub(r"\s*# worker .*", "", l)
@@ -78,6 +82,8 @@ with open("$taskfile") as f:
             l2 = l2[1:]
         if l2.strip():
             L.append(l2)
+        elif $RESET > 0:
+            L.append(l)
 with open("$taskfile", "w") as f:
     f.writelines(L)
 EOPY
