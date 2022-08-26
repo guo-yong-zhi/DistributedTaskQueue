@@ -87,7 +87,7 @@ Execute the following command on each worker. Note that `-m` can be omitted here
 ### lock
 Manually editing the task file may cause conflicts when the tasks are running (unless you are sure that the worker is busy executing the current task and will not fetch the next task item), so you'd better run a lock command such as `~/runtask.sh ~/tasklist.sh --lock` before editing, and release it with `CTRL-C` after editing. It is ok to append new tasks, delete pending tasks or change their order, but it is best not to add or subtract content before tasks that have already started. (ie change their line numbers)   
 ### reset
-During the running process, the task file will be edited and added with many comments. If you want to run the task again, execute such as `~/runtask.sh ~/tasklist.sh --reset`, and the task file will be restored to the non-running state.  
+During the running process, the task file will be edited and added with many comments. If you want to run the task again, execute such as `~/runtask.sh ~/tasklist.sh --reset`, and the task file will be restored to the non-running state.  Use `--reset k` to partially reset the lines after line `k`.
 ### tags 
 Two types of tags are supported in task files, `#!` and `#@i`.    
 Lines with `#!` tags will be executed by all possible workers, and commands such as `cd` will affect the environment and are often used for initialization; Lines without `#!` tags will only be executed by one worker (and then commented out), and will be executed in a subshell. Commands such as `cd` do not affect the parent environment, and are often used to run specific tasks.    
