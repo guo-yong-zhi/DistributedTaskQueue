@@ -56,22 +56,6 @@ newtask=$1
 #main loop
 while :
 do
-
-#lock
-if [ ! -z "$LOCK" ]
-then
-taskfile=`echo "$newtask" | cut -s -d \: -f 2`
-[ -z "$taskfile" ] && taskfile="$newtask"
-taskfile="${taskfile/#\~/$HOME}"
-mst=`echo "$newtask" | cut -s -d \: -f 1`
-[ -z "$mst" ] && mst="$master"
-ssh $mst bash << EOF
-exec {FD}<>"$taskfile.lock"; flock \$FD
-echo "$taskfile is locked (unlock it with CTRL-C)"
-tail -f /dev/null
-EOF
-exit
-fi
 #reset
 if [ ! -z "$RESET" ]
 then
@@ -87,7 +71,7 @@ import re
 L = []
 with open("$taskfile") as f:
     for l in f.readlines():
-        if l.startswith('#LASTWORKER'):
+        if l.startswith('#LASTWORKER') or l.startswith('#?line:'):
             continue
         l2 = re.sub(r"\s*# worker .*", "", l)
         if l2 != l and l2 and l2[0] == "#":
@@ -98,6 +82,22 @@ with open("$taskfile", "w") as f:
     f.writelines(L)
 EOPY
 flock -u \$FD
+EOF
+[ -z "$LOCK" ] && exit
+fi
+
+#lock
+if [ ! -z "$LOCK" ]
+then
+taskfile=`echo "$newtask" | cut -s -d \: -f 2`
+[ -z "$taskfile" ] && taskfile="$newtask"
+taskfile="${taskfile/#\~/$HOME}"
+mst=`echo "$newtask" | cut -s -d \: -f 1`
+[ -z "$mst" ] && mst="$master"
+ssh $mst bash << EOF
+exec {FD}<>"$taskfile.lock"; flock \$FD
+echo "$taskfile is locked (unlock it with CTRL-C)"
+tail -f /dev/null
 EOF
 exit
 fi
