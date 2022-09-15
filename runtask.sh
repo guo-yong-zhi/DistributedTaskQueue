@@ -109,6 +109,7 @@ exit
 fi
 
 #task init
+[ ! -z "$jumpto" ] && newtask="$jumpto" && newid="$WORKERID" && jumpto=""
 if [ ! -z "$newtask" ]
 then
 taskfile=`echo "$newtask" | cut -s -d \: -f 2`
