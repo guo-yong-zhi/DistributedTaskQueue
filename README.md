@@ -10,7 +10,7 @@ Here is an installation-free, single-file solution with just over 200 lines of c
 First, download the script to each worker.  
 ```shell
 cd ~
-wget https://raw.githubusercontent.com/guo-yong-zhi/DistributedTaskList/main/runtask.sh
+wget https://raw.githubusercontent.com/guo-yong-zhi/DistributedTaskQueue/main/runtask.sh
 chmod a+x ~/runtask.sh
 ```
 Note: Use `~/runtask.sh -h` to view help information  
