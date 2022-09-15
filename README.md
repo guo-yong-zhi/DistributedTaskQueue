@@ -94,7 +94,7 @@ Lines with `#!` tags will be executed by all possible workers, and commands such
 Tasks tagged with `#@i` will be specified to run on a certain worker, where `i` is the worker-id. Multiple tags such as `#@1#@2` represent multiple alternative workers. If it is used with `#!`, such as `#!#@1#@2`, every worker will execute the task. No `#@i` tag means it can be executed on all workers, which is equivalent to having tags of all workers.  
 ### Environment variables and runtime variables
 Environment variables `MASTER_SERVER`, `WORKER_NAME`, `TASK_FILE` can be configured in the worker (not necessary for the master node). With environment variables configured, the corresponding parameters can be omitted when running `~/runtask.sh` on the command line. Another environment variable `WORKERID` can be read, but not set. The worker-id is usually generated automatically, but you can also set it via the command line argument `--id` or the runtime variable `newid`.  
-There are two important runtime variables `newtask` and `newid` that can be used to set new task file and worker-id on the fly. The former corresponds to the environment variable `TASK_FILE` and the positional command line parameter, and the latter corresponds to the environment variable `WORKERID` and command line arguments `-i`, `--id`.   
+There are three important runtime variables `newtask`, `newid`  and `jumpto` that can be used to set new task file and worker-id on the fly. `newtask` corresponds to the environment variable `TASK_FILE` and the positional command line parameter, and `newid` corresponds to the environment variable `WORKERID` and command line arguments `-i`, `--id`.   
 Using these variables, you can achieve dynamic task file jumping. Here is an example (`~/tasklist1.sh`):  
 ```shell
 echo task1; sleep 3 
@@ -106,4 +106,4 @@ newtask="~/tasklist2.sh" #!#@2
 newtask="~/tasklist3.sh"; newid=$WORKERID #!
 echo task5; sleep 3
 ```
-Note that the tag `#!` is required when you want to change the execution flow. After task1 to task4 are executed, worker 1 will exit directly; worker 2 will jump to `~/tasklist2.sh`, and will be reassigned a new worker-id; other workers will jump to `~/tasklist3.sh` and keep the worker-id unchanged. task5 will never be executed.  
+Note that the tag `#!` is required when you want to change the execution flow. After task1 to task4 are executed, worker 1 will exit directly; worker 2 will jump to `~/tasklist2.sh`, and will be reassigned a new worker-id; other workers will jump to `~/tasklist3.sh` and keep the worker-id unchanged. task5 will never be executed.  Setting both `newtask` and `newid` is a common pattern, so here's a shorthand `jumpto`. That is, `newtask="~/tasklist3.sh"; newid=$WORKERID #!` is equivalent to `jumpto="~/tasklist3.sh" #!`
