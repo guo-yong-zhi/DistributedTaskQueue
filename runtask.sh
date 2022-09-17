@@ -168,6 +168,8 @@ with open("$taskfile") as f:
     L = f.readlines()
 linenum2 = $linenum
 edited = False
+waiting = set()
+waiting_plus = set()
 for i,l in enumerate(L, 1):
     l = l.strip()
     if "#!" in l:
@@ -176,13 +178,20 @@ for i,l in enumerate(L, 1):
                 print(l)
                 linenum2 = i
                 break
-    elif l and not l.startswith("#"):
-        if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
-            print(l)
-            L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
-            linenum2 = i
-            edited = True
-            break
+    else:
+        group = [i.rstrip()[1:] for i in l.split("#") if i.startswith(':')]
+        group_plus = [i.rstrip()[1:] for i in l.split("#") if i.startswith('+')]
+        if l and not l.startswith("#"):
+            if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
+                if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
+                    print(l)
+                    L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
+                    linenum2 = i
+                    edited = True
+                    break
+        if not l.endswith("#ok"):
+            waiting.update(group)
+            waiting_plus.update(group_plus)
 print(linenum2)
 ind = $linenum-1
 if 0 <= ind < len(L):
