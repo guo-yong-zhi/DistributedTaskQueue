@@ -48,10 +48,10 @@ echo task5; sleep 3
 ## A practical example
 An example of training a series of deep learning models is as follows. Suppose the directory structure is like:  
 >~/playground/models  
-|- resnet_family  
-|  |- resnet18  
+|- resnet_family   
 |  |- resnet34  
 |  |- resnet50  
+|  |- resnet101  
 |  
 |- mbnet_family  
 |  |- mbnetv1  
@@ -62,17 +62,32 @@ An example of training a series of deep learning models is as follows. Suppose t
 Create a new `~/tasklist.sh` as follows:  
 ```shell
 cd ~/playground/models/resnet_family #!
-resnet18; train_model #@1
-resnet34; train_model
-resnet50; train_model
-resnet18; test_model #@1
+cd resnet34; train_model #:mygroup1
+cd resnet50; train_model
+cd resnet101; train_model #@2
+
 cd ../mbnet_family #!
-mbnetv1; train_model
-mbnetv2; train_model
-mbnetv3; train_model
+cd mbnetv1; train_model
+cd mbnetv2; train_model
+cd mbnetv3; train_model
+
+cd ../resnet_family #!
+cd resnet34; deploy_model #:mygroup1
+cd resnet34; test_model_on dataset1 #+mygroup1
+cd resnet34; test_model_on dataset2 #+mygroup1
+cd resnet34; test_model_on dataset3 #+mygroup1
+cd resnet34; report_test_result #:mygroup1
 ```
-Lines marked with `#!` are used for environment initialization, and lines without `#!` mark are specific training/testing tasks.  
-To schedule order-sensitive tasks, the `#@1` tag here specifies that they all run on worker 1. [see tags](#tags)
+Lines marked with `#!` are used for environment initialization, and lines without `#!` are specific training/testing tasks.  
+`#@2` tag here specifies that the big resnet101 will be trained on worker 2 (because my worker 2 has more memory).
+```
+                                +--> test_model_on dataset1 ---+
+                                |                              |
+train_model --> deploy_model ---+--> test_model_on dataset2 ---+--> report_test_result
+                                |                              |
+                                +--> test_model_on dataset3 ---+
+```
+To schedule order-sensitive tasks, we use tags `#:name` (sequential) and `#+name` (parallel).  [see tags](#tags)
 ### Configure environment variables  
 ```shell
 export MASTER_SERVER="master@myhost"
@@ -89,9 +104,13 @@ Manually editing the task file may cause conflicts when the tasks are running (u
 ### reset
 During the running process, the task file will be edited and added with many comments. If you want to run the task again, execute such as `~/runtask.sh ~/tasklist.sh --reset`, and the task file will be restored to the non-running state.  Use `--reset k` to partially reset the lines after line `k`.
 ### tags 
-Two types of tags are supported in task files, `#!` and `#@i`.    
+Four types of tags are supported in task files, `#!`, `#@i`, `#:group1` and `#+group1`.    
+* `#!`    
 Lines with `#!` tags will be executed by all possible workers, and commands such as `cd` will affect the environment and are often used for initialization; Lines without `#!` tags will only be executed by one worker (and then commented out), and will be executed in a subshell. Commands such as `cd` do not affect the parent environment, and are often used to run specific tasks.    
+* `#@`    
 Tasks tagged with `#@i` will be specified to run on a certain worker, where `i` is the worker-id. Multiple tags such as `#@1#@2` represent multiple alternative workers. If it is used with `#!`, such as `#!#@1#@2`, every worker will execute the task. No `#@i` tag means it can be executed on all workers, which is equivalent to having tags of all workers.  
+* `#:` and `#+`  
+Tags `#:group1` and `#+group1` are used to bind some command lines to one group. "group1" can be replaced with any name you like. A line marked with `#:group1` will not start to run until the commands before marked with `#:group1` or `#+group1` (commands in the same group) finish and succeed (labeled with `#ok`). A line marked with `#+group1` will not start to run until the commands before marked with `#:group1` finish and succeed. That is, `#+` marked lines do not wait for each other, so they can be executed in parallel.
 ### Environment variables and runtime variables
 Environment variables `MASTER_SERVER`, `WORKER_NAME`, `TASK_FILE` can be configured in the worker (not necessary for the master node). With environment variables configured, the corresponding parameters can be omitted when running `~/runtask.sh` on the command line. Another environment variable `WORKERID` can be read, but not set. The worker-id is usually generated automatically, but you can also set it via the command line argument `--id` or the runtime variable `newid`.  
 There are three important runtime variables `newtask`, `newid`  and `jumpto` that can be used to set new task file and worker-id on the fly. `newtask` corresponds to the environment variable `TASK_FILE` and the positional command line parameter, and `newid` corresponds to the environment variable `WORKERID` and command line arguments `-i`, `--id`.   
