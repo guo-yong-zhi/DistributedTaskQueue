@@ -72,7 +72,7 @@ import re
 L = []
 with open("$taskfile") as f:
     for i,l in enumerate(f.readlines()):
-        if i+1 < $RESET:
+        if i+1 < $RESET or l.strip()=="":
             L.append(l)
             continue
         if l.startswith('#LASTWORKER') or l.startswith('#?line:'):
@@ -172,15 +172,17 @@ waiting = set()
 waiting_plus = set()
 for i,l in enumerate(L, 1):
     l = l.strip()
+    group = [i.rstrip()[1:] for i in l.split("#") if i.startswith(':')]
+    group_plus = [i.rstrip()[1:] for i in l.split("#") if i.startswith('+')]
+    group_plus.append("") # default tag "#+"
     if "#!" in l:
         if i>$linenum:
             if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
-                print(l)
-                linenum2 = i
-                break
+                if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
+                    print(l)
+                    linenum2 = i
+                    break
     else:
-        group = [i.rstrip()[1:] for i in l.split("#") if i.startswith(':')]
-        group_plus = [i.rstrip()[1:] for i in l.split("#") if i.startswith('+')]
         if l and not l.startswith("#"):
             if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
                 if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
@@ -189,7 +191,9 @@ for i,l in enumerate(L, 1):
                     linenum2 = i
                     edited = True
                     break
-        if not l.endswith("#ok"):
+            waiting.update(group) # unstarted
+            waiting_plus.update(group_plus) # unstarted
+        if "# worker " in l and " ..." in l and " # (" in l and not l.endswith("#ok"): # unfinished or failed
             waiting.update(group)
             waiting_plus.update(group_plus)
 print(linenum2)
