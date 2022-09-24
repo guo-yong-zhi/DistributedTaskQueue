@@ -231,8 +231,8 @@ then
             (eval "$line")
         fi
         excode=$?
-        [ $excode -eq 0 ] && excode=ok
-        echo "∎(worker $WORKERID)[$line] #$excode"
+        [ $excode -eq 0 ] && excode=ok || excode="error$excode"
+        echo "∎ (worker $WORKERID)[$line] @$(date '+%m-%d %H:%M:%S') #$excode"
         cmdline=$line
     done <<< "$cmd"
     echo
