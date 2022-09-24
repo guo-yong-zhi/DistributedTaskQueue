@@ -57,8 +57,8 @@ newtask=$1
 #main loop
 while :
 do
-#reset
-if [ ! -z "$RESET" ]
+#reset and lock
+if [ ! -z "$RESET" ] || [ ! -z "$LOCK" ]
 then
 taskfile=`echo "$newtask" | cut -s -d \: -f 2`
 [ -z "$taskfile" ] && taskfile="$newtask"
@@ -67,6 +67,8 @@ mst=`echo "$newtask" | cut -s -d \: -f 1`
 [ -z "$mst" ] && mst="$master"
 ssh $mst bash << EOF
 exec {FD}<>"$taskfile.lock"; flock \$FD
+if [ ! -z "$RESET" ]
+then
 python3 << EOPY
 import re
 L = []
@@ -87,23 +89,15 @@ with open("$taskfile") as f:
 with open("$taskfile", "w") as f:
     f.writelines(L)
 EOPY
-flock -u \$FD
-EOF
-[ -z "$LOCK" ] && exit
 fi
 
-#lock
 if [ ! -z "$LOCK" ]
 then
-taskfile=`echo "$newtask" | cut -s -d \: -f 2`
-[ -z "$taskfile" ] && taskfile="$newtask"
-taskfile="${taskfile/#\~/$HOME}"
-mst=`echo "$newtask" | cut -s -d \: -f 1`
-[ -z "$mst" ] && mst="$master"
-ssh $mst bash << EOF
-exec {FD}<>"$taskfile.lock"; flock \$FD
 echo "$taskfile is locked (unlock it with CTRL-C)"
 tail -f /dev/null
+fi
+
+flock -u \$FD
 EOF
 exit
 fi
