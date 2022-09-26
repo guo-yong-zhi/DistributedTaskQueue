@@ -180,11 +180,12 @@ for i,l in enumerate(L, 1):
         if l and not l.startswith("#"):
             if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
                 if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
-                    print(l)
-                    L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
-                    linenum2 = i
-                    edited = True
-                    break
+                    if " # worker $WORKERID # " not in l: # Not already tried
+                        print(l)
+                        L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
+                        linenum2 = i
+                        edited = True
+                        break
             waiting.update(group) # unstarted
             waiting_plus.update(group_plus) # unstarted
         if "# worker " in l and " ..." in l and " # (" in l and not l.endswith("#ok"): # unfinished or failed
@@ -199,6 +200,8 @@ if 0 <= ind < len(L):
         if c1 == c2:
             if "#!" not in L[ind]:
                 L[ind] = L[ind].strip() + " `date '+%m-%d %H:%M:%S'`) #$excode\n"
+                if "$excode" != "ok" and L[ind].startswith("#"):
+                    L[ind] = L[ind][1:]
                 edited = True
         else:
             L.append("#?line:$linenum# " + c2 + " # worker $WORKERID # ... `date '+%m-%d %H:%M:%S'`) #$excode\n")
@@ -232,7 +235,7 @@ then
         fi
         excode=$?
         [ $excode -eq 0 ] && excode=ok || excode="error$excode"
-        echo "∎ (worker $WORKERID)[$line] @$(date '+%m-%d %H:%M:%S') #$excode"
+        echo "∎ (worker $WORKERID)[$linenum: $line] @$(date '+%m-%d %H:%M:%S') #$excode"
         cmdline=$line
     done <<< "$cmd"
     echo
