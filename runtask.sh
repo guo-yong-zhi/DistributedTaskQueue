@@ -160,39 +160,8 @@ exec {FD}<>"$taskfile.lock"; flock \$FD
 python3 << EOPY
 with open("$taskfile") as f:
     L = f.readlines()
-linenum2 = $linenum
-edited = False
-waiting = set()
-waiting_plus = set()
-for i,l in enumerate(L, 1):
-    l = l.strip()
-    group = [i.rstrip()[1:] for i in l.split("#") if i.startswith(':')]
-    group_plus = [i.rstrip()[1:] for i in l.split("#") if i.startswith('+')]
-    group_plus.append("") # default tag "#+"
-    if "#!" in l:
-        if i>$linenum:
-            if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
-                if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
-                    print(l)
-                    linenum2 = i
-                    break
-    else:
-        if l and not l.startswith("#"):
-            if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
-                if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
-                    if " # worker $WORKERID # " not in l: # Not already tried
-                        print(l)
-                        L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
-                        linenum2 = i
-                        edited = True
-                        break
-            waiting.update(group) # unstarted
-            waiting_plus.update(group_plus) # unstarted
-        if "# worker " in l and " ..." in l and " # (" in l and not l.endswith("#ok"): # unfinished or failed
-            waiting.update(group)
-            waiting_plus.update(group_plus)
-print(linenum2)
 ind = $linenum-1
+edited = False
 if 0 <= ind < len(L):
     c1 = L[ind].strip("#").split("#")[0].strip()
     c2 = """`echo $cmdline`""".strip("#").split("#")[0].strip()
@@ -205,10 +174,47 @@ if 0 <= ind < len(L):
                 edited = True
         else:
             L.append("#?line:$linenum# " + c2 + " # worker $WORKERID # ... `date '+%m-%d %H:%M:%S'`) #$excode\n")
-            edited = True
+            edited = True  
+
+linenum2 = $linenum
+waiting = set()
+waiting_plus = set()
+last_cmd_b = ""
+for i,l in enumerate(L, 1):
+    l = l.strip()
+    group = [i.rstrip()[1:] for i in l.split("#") if i.startswith(':')]
+    group_plus = [i.rstrip()[1:] for i in l.split("#") if i.startswith('+')]
+    group_plus.append("") # default tag "#+"
+    if "#!" in l:
+        if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
+            if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
+                if i > $linenum:
+                    print(l)
+                    linenum2 = i
+                    break
+                else:
+                    last_cmd_b = l
+    else:
+        if l and not l.startswith("#"):
+            if "#@" not in l or "@$WORKERID" in {i.rstrip() for i in l.split("#")}:
+                if waiting.isdisjoint(group + group_plus) and waiting_plus.isdisjoint(group):
+                    if " # worker $WORKERID # " not in l: # Not already tried
+                        if i < $linenum and last_cmd_b:
+                            print(last_cmd_b)
+                        print(l)
+                        L[i-1] = "#" + l + " # worker $WORKERID # (`date '+%m-%d %H:%M:%S'` ...\n"
+                        linenum2 = i
+                        edited = True
+                        break
+            waiting.update(group) # unstarted
+            waiting_plus.update(group_plus) # unstarted
+        if "# worker " in l and " ..." in l and " # (" in l and not l.endswith("#ok"): # unfinished or failed
+            waiting.update(group)
+            waiting_plus.update(group_plus)
+print(linenum2)
 if edited:
     with open("$taskfile", "w") as f:
-        f.writelines(L)        
+        f.writelines(L) 
 EOPY
 flock -u \$FD
 EOF
