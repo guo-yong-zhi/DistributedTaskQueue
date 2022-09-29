@@ -160,21 +160,35 @@ exec {FD}<>"$taskfile.lock"; flock \$FD
 python3 << EOPY
 with open("$taskfile") as f:
     L = f.readlines()
-ind = $linenum-1
+index = $linenum-1
 edited = False
-if 0 <= ind < len(L):
-    c1 = L[ind].strip("#").split("#")[0].strip()
-    c2 = """`echo $cmdline`""".strip("#").split("#")[0].strip()
-    if c2 != "":
-        if c1 == c2:
-            if "#!" not in L[ind]:
-                L[ind] = L[ind].strip() + " `date '+%m-%d %H:%M:%S'`) #$excode\n"
-                if "$excode" != "ok" and L[ind].startswith("#"):
-                    L[ind] = L[ind][1:]
-                edited = True
-        else:
-            L.append("#?line:$linenum# " + c2 + " # worker $WORKERID # ... `date '+%m-%d %H:%M:%S'`) #$excode\n")
-            edited = True  
+c2 = """`echo $cmdline`""".strip("#").split("#")[0].strip()
+if c2 != "":
+    found = False
+    for r in range(len(L)):
+        if found: break
+        rg = (0,) if r == 0 else (r, -r)
+        for sft in rg:
+            ind = index + sft
+            if 0 <= ind < len(L):
+                li = L[ind].strip()
+                c1 = li.strip("#").split("#")[0].strip()
+                if c1 == c2:
+                    if "#!" in li:
+                        found = True
+                        break
+                    elif " # worker $WORKERID # " in li and li.endswith("..."):
+                        if sft != 0:
+                            L[ind] = L[ind].strip() + "line%+d"%sft
+                        L[ind] = L[ind].strip() + " `date '+%m-%d %H:%M:%S'`) #$excode\n"
+                        if "$excode" != "ok" and L[ind].startswith("#"):
+                            L[ind] = L[ind][1:]
+                        edited = True
+                        found = True
+                        break
+    else:
+        L.append("#?line:$linenum# " + c2 + " # worker $WORKERID # ... `date '+%m-%d %H:%M:%S'`) #$excode\n")
+        edited = True  
 
 linenum2 = $linenum
 waiting = set()
